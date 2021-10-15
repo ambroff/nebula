@@ -13,6 +13,7 @@ require (
 	github.com/golang/protobuf v1.5.0
 	github.com/google/gopacket v1.1.19
 	github.com/imdario/mergo v0.3.8
+	github.com/jackpal/gateway v1.0.7
 	github.com/kardianos/service v1.1.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/miekg/dns v1.1.25
