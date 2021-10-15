@@ -3,12 +3,62 @@ package nebula
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"testing"
 
 	"github.com/jackpal/gateway"
 )
+
+//  0                   1                   2                   3
+//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Vers = 0      | OP = 128 + 0  | Result Code (net byte order)  |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | Seconds Since Start of Epoch (in network byte order)          |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+// | External IPv4 Address (a.b.c.d)                               |
+// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+type externalIPv4Announce struct {
+	// Specifies the protocol version supported by the gateway. 0 is NAT-PMP. 1 is PCP.
+	Version                  uint8
+
+	// This result code must be 128 + 0. If it is > 128 then something
+	// went wrong and the rest of the response is undefined.
+	Op                       uint8
+
+	// TODO: Document this
+	ResultCode               uint16
+
+	// Seconds since the gateway's port-mapping table was initialized. This can
+	// be considered the time since the last reboot of the gateway.
+	SecondsSinceStartOfEpoch uint32
+
+	// The public IPv4 address of the gateway.
+	ExternalIPv4Address      net.IP
+}
+
+func readExternalIPvAnnounce(reader io.Reader) (externalIPv4Announce, error) {
+	var responseBuf [12]byte
+	bytesRead, err := reader.Read(responseBuf[:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Unable to read response from socket: %v\n", err)
+		return externalIPv4Announce{}, err
+	}
+
+	fmt.Printf("Read %d bytes from reader\n", bytesRead)
+
+	msg := externalIPv4Announce{
+		Version: responseBuf[0],
+		Op: responseBuf[1],
+		ResultCode: binary.BigEndian.Uint16(responseBuf[2:4]),
+		SecondsSinceStartOfEpoch: binary.BigEndian.Uint32(responseBuf[4:8]),
+		ExternalIPv4Address: net.IP(responseBuf[8:12]),
+	}
+
+	return msg, nil
+}
 
 func TestRequestPublicIPFromGateway(t *testing.T) {
 	gatewayAddress, err := gateway.DiscoverGateway()
@@ -41,43 +91,15 @@ func TestRequestPublicIPFromGateway(t *testing.T) {
 
 	fmt.Printf("Wrote %d bytes to %s\n", bytesWritten, gateway)
 
-	//  0                   1                   2                   3
-	//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	// | Vers = 0      | OP = 128 + 0  | Result Code (net byte order)  |
-	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	// | Seconds Since Start of Epoch (in network byte order)          |
-	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	// | External IPv4 Address (a.b.c.d)                               |
-	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	var responseBuf [12]byte
-	var bytesRead int
-	bytesRead, err = conn.Read(responseBuf[:])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: Unable to read response from socket: %v\n", err)
-		os.Exit(1)
+	announce, deserializeErr := readExternalIPvAnnounce(conn)
+	if deserializeErr != nil {
+		t.Fail()
 	}
 
-	fmt.Printf("Read %d bytes from %s\n", bytesRead, gateway)
-
-	version := responseBuf[0]
-	op := responseBuf[1]
-
-	// This result code must be 128 + 0. If it is > 128 then something
-	// went wrong and the rest of the response is undefined.
-	resultCode := binary.BigEndian.Uint16(responseBuf[2:4])
-
-	// Seconds since the gateway's port-mapping table was initialized. This can
-	// be considered the time since the last reboot of the gateway.
-	secondsSinceStartOfEpoch := binary.BigEndian.Uint32(responseBuf[4:8])
-
-	// The public IPv4 address of the gateway.
-	externalIPv4 := net.IP(responseBuf[8:12])
-
 	fmt.Printf("RESPONSE:\n")
-	fmt.Printf(" - version:            %d\n", version)
-	fmt.Printf(" - op:                 %d\n", op)
-	fmt.Printf(" - result code:        %d\n", resultCode)
-	fmt.Printf(" - secs since epoch:   %d\n", secondsSinceStartOfEpoch)
-	fmt.Printf(" - Ext. IPv4           %v\n", externalIPv4)
+	fmt.Printf(" - version:            %d\n", announce.Version)
+	fmt.Printf(" - op:                 %d\n", announce.Op)
+	fmt.Printf(" - result code:        %d\n", announce.ResultCode)
+	fmt.Printf(" - secs since epoch:   %d\n", announce.SecondsSinceStartOfEpoch)
+	fmt.Printf(" - Ext. IPv4           %v\n", announce.ExternalIPv4Address)
 }

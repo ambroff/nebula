@@ -36,6 +36,17 @@ type PortMapper interface {
 	MapPort(localAddress net.IP, port uint16) chan interface{}
 }
 
+type portMapper struct {
+}
+
+func NewPortMapper() *PortMapper {
+	return &portMapper{}
+}
+
+func (p *portMapper) MapPort(localAddress net.IP, port uint16) chan interface{} {
+	return nil
+}
+
 // FIXME: Probe the gateway at port NAT_PNP_PORT_2 with ICMP. If it is
 // unreachable then the gateway doesn't support NAT-PNP / PCP.
 
