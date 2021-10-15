@@ -22,21 +22,21 @@ import (
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 type externalIPv4Announce struct {
 	// Specifies the protocol version supported by the gateway. 0 is NAT-PMP. 1 is PCP.
-	Version                  uint8
+	Version uint8
 
 	// This result code must be 128 + 0. If it is > 128 then something
 	// went wrong and the rest of the response is undefined.
-	Op                       uint8
+	Op uint8
 
 	// TODO: Document this
-	ResultCode               uint16
+	ResultCode uint16
 
 	// Seconds since the gateway's port-mapping table was initialized. This can
 	// be considered the time since the last reboot of the gateway.
 	SecondsSinceStartOfEpoch uint32
 
 	// The public IPv4 address of the gateway.
-	ExternalIPv4Address      net.IP
+	ExternalIPv4Address net.IP
 }
 
 func readExternalIPvAnnounce(reader io.Reader) (externalIPv4Announce, error) {
@@ -50,11 +50,11 @@ func readExternalIPvAnnounce(reader io.Reader) (externalIPv4Announce, error) {
 	fmt.Printf("Read %d bytes from reader\n", bytesRead)
 
 	msg := externalIPv4Announce{
-		Version: responseBuf[0],
-		Op: responseBuf[1],
-		ResultCode: binary.BigEndian.Uint16(responseBuf[2:4]),
+		Version:                  responseBuf[0],
+		Op:                       responseBuf[1],
+		ResultCode:               binary.BigEndian.Uint16(responseBuf[2:4]),
 		SecondsSinceStartOfEpoch: binary.BigEndian.Uint32(responseBuf[4:8]),
-		ExternalIPv4Address: net.IP(responseBuf[8:12]),
+		ExternalIPv4Address:      net.IP(responseBuf[8:12]),
 	}
 
 	return msg, nil

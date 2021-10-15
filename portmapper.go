@@ -39,7 +39,7 @@ type PortMapper interface {
 type portMapper struct {
 }
 
-func NewPortMapper() *PortMapper {
+func NewPortMapper() PortMapper {
 	return &portMapper{}
 }
 
