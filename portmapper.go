@@ -29,6 +29,18 @@ const (
 
 	PROTOCOL_VERSION_NATPNP = 1
 	PROTOCOL_VERSION_PCP    = 2
+
+	// MULTICAST_ADDR Section 3.2.1.  Announcing Address Changes
+	//
+	// The gateway is expected to announce to this link-local address any time the public IPv4 address changes or the
+	// gateway reboots. It will broadcast to this address multiple times on an exponentially increasing interval.
+	//
+	// A message received on this address that isn't from the configured gateway should be ignored.
+	//
+	// If the SecondsSinceStartOfEpoch field is a plausible value that indicates that a state reset has actually
+	// occurred on the gateway then the client is expected to re-create any port mappings as described in Section
+	// 3.7, "Recreating Mappings on NAT Gateway Reboot".
+	MULTICAST_ADDR = "224.0.0.1:5350"
 )
 
 // PortMapper Use port-mapping protocols such as UPNP, NAT-PMP and PCP to punch holes at the gateway.

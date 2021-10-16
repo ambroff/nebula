@@ -68,13 +68,25 @@ func TestRequestPublicIPFromGateway(t *testing.T) {
 
 	gateway := fmt.Sprintf("%s:%d", gatewayAddress, NAT_PNP_PORT)
 
+	var gatewayAddr *net.UDPAddr
+	gatewayAddr, err = net.ResolveUDPAddr("udp", gateway)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Unable to resolve UDP address: %v\n", err)
+		os.Exit(1)
+	}
+
 	var conn net.Conn
-	conn, err = net.Dial("udp", gateway)
+	conn, err = net.DialUDP("udp", nil, gatewayAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to create UDP socket: %v\n", err)
 		os.Exit(1)
 	}
 	defer conn.Close()
+
+	//doneChan := make(chan error, 1)
+	//go func() {
+	//
+	//}
 
 	//  0                   1
 	//  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
