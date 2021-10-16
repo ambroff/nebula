@@ -1,4 +1,4 @@
-// Implementation of NAT-PNP and PCP from RFC-6886
+// Package nebula Implementation of NAT-PNP and PCP from RFC-6886
 //
 // https://datatracker.ietf.org/doc/html/rfc6886
 package nebula
@@ -65,6 +65,7 @@ func (p *portMapper) MapPort(localAddress net.IP, port uint16) chan interface{} 
 
 // ResultCode Section 3.5: Result Codes
 type ResultCode uint16
+
 const (
 	// RESULT_CODE_SUCCESS Always indicates a successful operation.
 	RESULT_CODE_SUCCESS = 0
@@ -84,6 +85,13 @@ const (
 
 	// RESULT_CODE_UNSUPPORTED_OPCODE The Op sent by the client in a request is not supported by the gateway.
 	RESULT_CODE_UNSUPPORTED_OPCODE = 5
+)
+
+type OpCode uint8
+
+const (
+	OPCODE_CREATE_UDP_MAPPING = 1
+	OPCODE_CREATE_TCP_MAPPING = 2
 )
 
 // FIXME
@@ -245,7 +253,7 @@ type createMappingRequest struct {
 	// Opcodes supported:
 	//   1 - Map UDP
 	//   2 - Map TCP
-	Op uint8
+	Op OpCode
 
 	// The Reserved field MUST be set to zero on transmission and MUST be ignored on reception.
 	Reserved uint16
@@ -265,8 +273,30 @@ type createMappingRequest struct {
 	RequestedLifetimeInSeconds uint32
 }
 
-func (r createMappingRequest) Write(writer io.Writer) {
-	// FIXME: implement
+func (r createMappingRequest) Write(writer io.Writer) error {
+	var buf [12]byte
+
+	buf[0] = r.Version
+	buf[1] = byte(r.Op)
+
+	// NB: No need to set Reserved field since it is zero-initialized nad should always be two 0x00 bytes.
+
+	binary.BigEndian.PutUint16(buf[4:6], r.InternalPort)
+
+	binary.BigEndian.PutUint16(buf[6:8], r.SuggestedExternalPort)
+
+	binary.BigEndian.PutUint32(buf[8:12], r.RequestedLifetimeInSeconds)
+
+	bytesWritten, err := writer.Write(buf[:])
+	if err != nil {
+		return err
+	}
+
+	if bytesWritten != 12 {
+		panic("Expected to have written 12 bytes")
+	}
+
+	return nil
 }
 
 // createMappingResponse The response sent by the gateway in response to createMappingResponse.
@@ -287,27 +317,27 @@ func (r createMappingRequest) Write(writer io.Writer) {
 //
 type createMappingResponse struct {
 	// FIXME: Is this the same as the other version field?
-	Version                  uint8
+	Version uint8
 
 	// Must match the Op from the request. Op in requests starts from 0, but in responses it starts at 128.
-	Op                       uint8
+	Op OpCode
 
-	ResultCode               uint16
+	ResultCode uint16
 
 	// Seconds since the gateway's port-mapping table was initialized. This can be considered the time since the last
 	// reboot of the gateway. See section 3.6, "Seconds Since Start of Epoch"
 	SecondsSinceStartOfEpoch uint32
 
 	// The internal port used by the service.
-	InternalPort             uint16
+	InternalPort uint16
 
 	// The external port mapped to the internal port. This may not match the desired external port requested by the
 	// client.
-	MappedExternalPort       uint16
+	MappedExternalPort uint16
 
 	// The lifetime of the port mapping. It will expire after this many seconds. This may be a shorter period of time
 	// than that requested by the client.
-	LifetimeInSeconds        uint32
+	LifetimeInSeconds uint32
 }
 
 func readCreateMappingResponse(reader io.Reader) (createMappingResponse, error) {
@@ -316,7 +346,7 @@ func readCreateMappingResponse(reader io.Reader) (createMappingResponse, error) 
 
 type clientRequest struct {
 	Version uint8
-	Op      uint8
+	Op      OpCode
 }
 
 //
