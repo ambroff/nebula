@@ -1,4 +1,4 @@
-package nebula
+package portmapper
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ func TestDeleteAllPortMappings(t *testing.T) {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to discover gateway: %v\n", err)
 	}
 
-	gateway := fmt.Sprintf("%s:%d", gatewayAddress, NAT_PNP_PORT)
+	gateway := fmt.Sprintf("%s:%d", gatewayAddress, natPnpPort)
 
 	var gatewayAddr *net.UDPAddr
 	gatewayAddr, err = net.ResolveUDPAddr("udp", gateway)
@@ -69,7 +69,7 @@ func TestRequestPublicIPFromGateway(t *testing.T) {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to discover gateway: %v\n", err)
 	}
 
-	gateway := fmt.Sprintf("%s:%d", gatewayAddress, NAT_PNP_PORT)
+	gateway := fmt.Sprintf("%s:%d", gatewayAddress, natPnpPort)
 
 	var gatewayAddr *net.UDPAddr
 	gatewayAddr, err = net.ResolveUDPAddr("udp", gateway)

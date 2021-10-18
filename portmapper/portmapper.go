@@ -1,7 +1,7 @@
-// Package nebula Implementation of NAT-PNP and PCP from RFC-6886
+// Package portmapper Nebula Implementation of NAT-PNP and PCP from RFC-6886
 //
 // https://datatracker.ietf.org/doc/html/rfc6886
-package nebula
+package portmapper
 
 import (
 	"encoding/binary"
@@ -12,26 +12,26 @@ import (
 )
 
 const (
-	// NAT_PNP_PORT Port used for client requests.
-	NAT_PNP_PORT = 5351
+	// natPnpPort Port used for client requests.
+	natPnpPort = 5351
 
-	// BASE_REQUEST_TIMEOUT_MS How long to wait for a response. This is base timeout
+	// baseRequestTimeoutMs How long to wait for a response. This is base timeout
 	// and exponential backoff is used.
 	//
 	// This is used for creating port mappings, querying port mappings
 	// and also deleting port mappings.
-	BASE_REQUEST_TIMEOUT_MS = 250
+	baseRequestTimeoutMs = 250
 
-	// MAX_ATTEMPTS The client should retry with exponential backoff up to 9 times
+	// maxAttempts The client should retry with exponential backoff up to 9 times
 	// with a max request timeout of 64 seconds. Once the last attempt is
 	// made and the server doesn't respond in 64 seconds then it is assumed
 	// that NAT-PNP / PCP are unsupported.
-	MAX_ATTEMPTS = 9
+	maxAttempts = 9
 
-	PROTOCOL_VERSION_NATPNP = 1
-	PROTOCOL_VERSION_PCP    = 2
+	protocolVersionNatPnp = 1
+	protocolVersionPcp    = 2
 
-	// MULTICAST_ADDR Section 3.2.1.  Announcing Address Changes.
+	// multicastAddr Section 3.2.1.  Announcing Address Changes.
 	//
 	// The gateway is expected to announce to this link-local address and port any time the public IPv4 address changes
 	// or the gateway reboots. It will broadcast to this address multiple times on an exponentially increasing interval.
@@ -44,7 +44,7 @@ const (
 	//
 	// NOTE: When listening on this port it is required that SO_REUSEPORT is used because there may be multiple services
 	// on the same system listening to announcements from the gateway.
-	MULTICAST_ADDR = "224.0.0.1:5350"
+	multicastAddr = "224.0.0.1:5350"
 )
 
 // PortMapper Use port-mapping protocols such as UPNP, NAT-PMP and PCP to punch holes at the gateway.
@@ -179,7 +179,7 @@ const (
 //   serially, one at a time; the client SHOULD NOT issue multiple
 //   concurrent requests.
 
-// externalIPv4Announce This is the message sent by the gateway to MULTICAST_ADDR under certain circumstances to tell
+// externalIPv4Announce This is the message sent by the gateway to MulticastAddr under certain circumstances to tell
 // NAT-PMP/PCP clients the current external IPv4 address of the gateway. It is also the response sent from the gateway
 // when it receives a request created by makeExternalIPv4Request.
 //
