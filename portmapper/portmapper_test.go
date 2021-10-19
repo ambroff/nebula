@@ -1,13 +1,52 @@
 package portmapper
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"testing"
 
 	"github.com/jackpal/gateway"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestListenToGatewayAdvertisements(t *testing.T) {
+	ctx := context.Background()
+
+	// FIXME: Figure out the actual max size.
+	buf := make([]byte, 1024)
+
+	pc, err := net.ListenPacket("udp", multicastAddr)
+	assert.Nil(t, err)
+	defer pc.Close();
+
+	doneChan := make(chan error, 1)
+
+	go func() {
+		for {
+			n, remoteAddr, err := pc.ReadFrom(buf)
+			if err != nil {
+				doneChan <- err
+				return
+			}
+
+			fmt.Printf("packet-received: bytes=%d from=%s\n", n, remoteAddr.String())
+
+
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		fmt.Println("Cancelled!")
+		err = ctx.Err()
+
+	case err = <-doneChan:
+	}
+
+	assert.Nil(t, err)
+}
 
 func TestDeleteAllPortMappings(t *testing.T) {
 	gatewayAddress, err := gateway.DiscoverGateway()
@@ -24,7 +63,7 @@ func TestDeleteAllPortMappings(t *testing.T) {
 		os.Exit(1)
 	}
 
-	var conn net.Conn
+	var conn *net.UDPConn
 	conn, err = net.DialUDP("udp", nil, gatewayAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to create UDP socket: %v\n", err)
@@ -78,7 +117,7 @@ func TestRequestPublicIPFromGateway(t *testing.T) {
 		os.Exit(1)
 	}
 
-	var conn net.Conn
+	var conn *net.UDPConn
 	conn, err = net.DialUDP("udp", nil, gatewayAddr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to create UDP socket: %v\n", err)
