@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
 )
 
 const (
@@ -53,6 +54,8 @@ type PortMapper interface {
 
 	Start()
 
+	Stop()
+
 	IsSupported() bool
 
 	MappedAddress() (net.IP, uint16, error)
@@ -60,23 +63,72 @@ type PortMapper interface {
 
 type portMapper struct {
 	isSupported bool
+	internalPortsToMap []uint16
+	mappingState map[uint16]uint64
+
+	keepRunning bool
+	wg sync.WaitGroup
+	mutex sync.Mutex
 }
 
 func NewPortMapper() PortMapper {
-	return &portMapper{}
+	return &portMapper{
+		isSupported: false,
+		internalPortsToMap: make([]uint16, 0),
+		mappingState: map[uint16]uint64{},
+,		keepRunning: true,
+		wg: sync.WaitGroup{},
+		mutex: sync.Mutex{},
+	}
 }
 
 func (p *portMapper) MapPort(port uint16) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	p.internalPortsToMap = append(p.internalPortsToMap, port)
 }
 
 func (p *portMapper) Start() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	// First, add an entry to a queue for each port to be mapped.
+
+	p.wg.Add(1)
+
+	// Start a gorouting which will loop forever, trying to drain the queue of ports to be mapped and enqueuing ports
+	// to be remapped when the mapping is set to expire (half way through the TTL).
+	go func() {
+		for p.keepRunning {
+
+		}
+
+		p.wg.Done()
+	}();
+
+	// Start a UDP server to listen for announcements. When the router announces and the epoch has been reset, then
+	// re-enqueue every mapped port.
+}
+
+func (p *portMapper) Stop() {
+	p.mutex.Lock()
+	p.keepRunning = false
+	p.mutex.Unlock()
+
+	p.wg.Wait()
 }
 
 func (p *portMapper) IsSupported() bool {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	return p.isSupported
 }
 
+// MappedAddress FIXME: Fix the interface of this. It should take a port as a parameter since tihs process could map multiple ports.
 func (p *portMapper) MappedAddress() (net.IP, uint16, error) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	return nil, 0, nil
 }
 
