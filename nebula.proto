@@ -26,6 +26,7 @@ message NebulaMetaDetails {
   uint32 VpnIp = 1;
   repeated Ip4AndPort Ip4AndPorts = 2;
   repeated Ip6AndPort Ip6AndPorts = 4;
+  Ip4AndPort PublicMappedAddress = 5;
   uint32 counter = 3;
 }
 

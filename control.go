@@ -76,6 +76,14 @@ func (c *Control) ShutdownBlock() {
 func (c *Control) RebindUDPServer() {
 	_ = c.f.outside.Rebind()
 
+	// The port may have changed, as well as the network. Here we tell the port mapper what our port is.
+	localAddr, err := c.f.outside.LocalAddr()
+	if err != nil {
+		c.l.Error("Unable to determine local address: %v", err)
+	} else {
+		c.f.lightHouse.portMapper.MapPort(localAddr.Port)
+	}
+
 	// Trigger a lighthouse update, useful for mobile clients that should have an update interval of 0
 	c.f.lightHouse.SendUpdate(c.f)
 

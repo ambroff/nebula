@@ -3,6 +3,7 @@ package nebula
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/slackhq/nebula/portmapper"
 	"net"
 	"time"
 
@@ -264,6 +265,10 @@ func Main(config *Config, configTest bool, buildVersion string, logger *logrus.L
 		lighthouseHosts[i] = ip2int(ip)
 	}
 
+	portMapper := portmapper.NewPortMapper()
+	portMapper.MapPort(uint16(port))
+	portMapper.Start()
+
 	lightHouse := NewLightHouse(
 		l,
 		amLighthouse,
@@ -276,6 +281,7 @@ func Main(config *Config, configTest bool, buildVersion string, logger *logrus.L
 		punchy.Respond,
 		punchy.Delay,
 		config.GetBool("stats.lighthouse_metrics", false),
+		portMapper,
 	)
 
 	remoteAllowList, err := config.GetRemoteAllowList("lighthouse.remote_allow_list", "lighthouse.remote_allow_ranges")

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/slackhq/nebula/portmapper"
 	"net"
 	"sync"
 	"time"
@@ -55,13 +56,15 @@ type LightHouse struct {
 	metrics           *MessageMetrics
 	metricHolepunchTx metrics.Counter
 	l                 *logrus.Logger
+
+	portMapper portmapper.PortMapper
 }
 
 type EncWriter interface {
 	SendMessageToVpnIp(t NebulaMessageType, st NebulaMessageSubType, vpnIp uint32, p, nb, out []byte)
 }
 
-func NewLightHouse(l *logrus.Logger, amLighthouse bool, myVpnIpNet *net.IPNet, ips []uint32, interval int, nebulaPort uint32, pc *udpConn, punchBack bool, punchDelay time.Duration, metricsEnabled bool) *LightHouse {
+func NewLightHouse(l *logrus.Logger, amLighthouse bool, myVpnIpNet *net.IPNet, ips []uint32, interval int, nebulaPort uint32, pc *udpConn, punchBack bool, punchDelay time.Duration, metricsEnabled bool, portMapper portmapper.PortMapper) *LightHouse {
 	ones, _ := myVpnIpNet.Mask.Size()
 	h := LightHouse{
 		amLighthouse: amLighthouse,
@@ -76,6 +79,7 @@ func NewLightHouse(l *logrus.Logger, amLighthouse bool, myVpnIpNet *net.IPNet, i
 		punchBack:    punchBack,
 		punchDelay:   punchDelay,
 		l:            l,
+		portMapper:   portMapper,
 	}
 
 	if metricsEnabled {
@@ -340,9 +344,11 @@ func (lh *LightHouse) LhUpdateWorker(f EncWriter) {
 }
 
 func (lh *LightHouse) SendUpdate(f EncWriter) {
+	// KWA: This is where we notify the lighthouse
 	var v4 []*Ip4AndPort
 	var v6 []*Ip6AndPort
 
+	// Add IP addresses of local interfaces
 	for _, e := range *localIps(lh.l, lh.localAllowList) {
 		if ip4 := e.To4(); ip4 != nil && ipMaskContains(lh.myVpnIp, lh.myVpnZeros, ip2int(ip4)) {
 			continue
@@ -355,12 +361,25 @@ func (lh *LightHouse) SendUpdate(f EncWriter) {
 			v6 = append(v6, NewIp6AndPort(e, lh.nebulaPort))
 		}
 	}
+
+	// Also add the public IP of the gateway if this machine is behind NAT and supports dynamic port mapping.
+	var publicMappedAddress *Ip4AndPort
+	if lh.portMapper.IsSupported() {
+		publicAddress, mappedPort, mappingErr := lh.portMapper.MappedAddress()
+		if mappingErr != nil {
+			// FIXME: Log here
+		} else {
+			publicMappedAddress = NewIp4AndPort(publicAddress, uint32(mappedPort))
+		}
+	}
+
 	m := &NebulaMeta{
 		Type: NebulaMeta_HostUpdateNotification,
 		Details: &NebulaMetaDetails{
 			VpnIp:       lh.myVpnIp,
 			Ip4AndPorts: v4,
 			Ip6AndPorts: v6,
+			PublicMappedAddress: publicMappedAddress,
 		},
 	}
 

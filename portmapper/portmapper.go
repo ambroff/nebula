@@ -49,18 +49,35 @@ const (
 
 // PortMapper Use port-mapping protocols such as UPNP, NAT-PMP and PCP to punch holes at the gateway.
 type PortMapper interface {
-	MapPort(localAddress net.IP, port uint16) chan interface{}
+	MapPort(port uint16)
+
+	Start()
+
+	IsSupported() bool
+
+	MappedAddress() (net.IP, uint16, error)
 }
 
 type portMapper struct {
+	isSupported bool
 }
 
 func NewPortMapper() PortMapper {
 	return &portMapper{}
 }
 
-func (p *portMapper) MapPort(localAddress net.IP, port uint16) chan interface{} {
-	return nil
+func (p *portMapper) MapPort(port uint16) {
+}
+
+func (p *portMapper) Start() {
+}
+
+func (p *portMapper) IsSupported() bool {
+	return p.isSupported
+}
+
+func (p *portMapper) MappedAddress() (net.IP, uint16, error) {
+	return nil, 0, nil
 }
 
 // ResultCode Section 3.5: Result Codes
