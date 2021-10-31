@@ -76,7 +76,7 @@ func NewPortMapper() PortMapper {
 		isSupported: false,
 		internalPortsToMap: make([]uint16, 0),
 		mappingState: map[uint16]uint64{},
-,		keepRunning: true,
+		keepRunning: true,
 		wg: sync.WaitGroup{},
 		mutex: sync.Mutex{},
 	}
