@@ -94,6 +94,15 @@ public:
     Result(T value) : value_(std::move(value)), has_value_(true) {}
     Result(std::string error) : error_(std::move(error)), has_value_(false) {}
     
+    // Factory methods for clarity
+    static Result success(T value) {
+        return Result(std::move(value));
+    }
+    
+    static Result error(std::string err) {
+        return Result(std::move(err));
+    }
+    
     bool ok() const { return has_value_; }
     bool is_error() const { return !has_value_; }
     
@@ -120,6 +129,53 @@ public:
     
 private:
     T value_;
+    std::string error_;
+    bool has_value_;
+};
+
+// Specialization for string to avoid ambiguity
+template<>
+class Result<std::string> {
+public:
+    Result(std::string value) : value_(std::move(value)), has_value_(true) {}
+    
+    static Result success(std::string value) {
+        return Result(std::move(value));
+    }
+    
+    static Result error(std::string err) {
+        Result r("");
+        r.error_ = std::move(err);
+        r.has_value_ = false;
+        return r;
+    }
+    
+    bool ok() const { return has_value_; }
+    bool is_error() const { return !has_value_; }
+    
+    const std::string& value() const {
+        if (!has_value_) {
+            throw std::runtime_error("Result has no value: " + error_);
+        }
+        return value_;
+    }
+    
+    std::string& value() {
+        if (!has_value_) {
+            throw std::runtime_error("Result has no value: " + error_);
+        }
+        return value_;
+    }
+    
+    const std::string& error() const {
+        if (has_value_) {
+            throw std::runtime_error("Result has no error");
+        }
+        return error_;
+    }
+    
+private:
+    std::string value_;
     std::string error_;
     bool has_value_;
 };

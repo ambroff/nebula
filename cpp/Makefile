@@ -63,14 +63,28 @@ BUILD_DIR := build
 SRC_DIR := src
 INCLUDE_DIR := include
 
+# Protobuf files
+PROTO_DIR := proto
+PROTO_SOURCES := $(wildcard $(PROTO_DIR)/*.proto)
+PROTO_HEADERS := $(PROTO_SOURCES:$(PROTO_DIR)/%.proto=$(BUILD_DIR)/%.pb.h)
+PROTO_OBJECTS := $(PROTO_SOURCES:$(PROTO_DIR)/%.proto=$(BUILD_DIR)/%.pb.o)
+
 # Source files
-SOURCES := $(wildcard $(SRC_DIR)/*.cpp) \
-           $(wildcard $(SRC_DIR)/cert/*.cpp)
+CPP_SOURCES := $(wildcard $(SRC_DIR)/*.cpp) \
+               $(wildcard $(SRC_DIR)/cert/*.cpp)
 ifneq ($(PLATFORM_SOURCES),)
-    SOURCES += $(PLATFORM_SOURCES)
+    CPP_SOURCES += $(PLATFORM_SOURCES)
 endif
-OBJECTS := $(SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-DEPS := $(OBJECTS:.o=.d)
+
+# Object files
+CPP_OBJECTS := $(CPP_SOURCES:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
+OBJECTS := $(CPP_OBJECTS)
+ifeq ($(HAVE_PROTOBUF),1)
+OBJECTS += $(PROTO_OBJECTS)
+endif
+
+# Dependency files
+DEPS := $(CPP_OBJECTS:.o=.d)
 
 # Executable
 TARGET := nebula
@@ -83,11 +97,22 @@ $(TARGET): $(OBJECTS)
 	@echo "Linking $@..."
 	@$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
 
+# Generate protobuf files
+$(BUILD_DIR)/%.pb.h $(BUILD_DIR)/%.pb.cc: $(PROTO_DIR)/%.proto
+	@mkdir -p $(BUILD_DIR)
+	@echo "Generating protobuf files for $<..."
+	@protoc --cpp_out=$(BUILD_DIR) -I$(PROTO_DIR) $<
+
+# Compile protobuf generated files
+$(BUILD_DIR)/%.pb.o: $(BUILD_DIR)/%.pb.cc $(BUILD_DIR)/%.pb.h
+	@echo "Compiling $<..."
+	@$(CXX) $(CXXFLAGS) -I$(BUILD_DIR) -c $< -o $@
+
 # Compile source files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(PROTO_HEADERS)
 	@mkdir -p $(dir $@)
 	@echo "Compiling $<..."
-	@$(CXX) $(CXXFLAGS) -I$(INCLUDE_DIR) -MMD -MP -c $< -o $@
+	@$(CXX) $(CXXFLAGS) -I$(INCLUDE_DIR) -I$(BUILD_DIR) -MMD -MP -c $< -o $@
 
 # Include dependency files
 -include $(DEPS)
@@ -117,7 +142,7 @@ check:
 .PHONY: test
 test: $(TARGET)
 	@echo "Running tests..."
-	@echo "TODO: Implement test suite"
+	@./$(TARGET)
 
 # Debug build
 .PHONY: debug

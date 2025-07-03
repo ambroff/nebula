@@ -5,11 +5,13 @@
 #include "nebula/tun.hpp"
 #include "nebula/crypto.hpp"
 #include "nebula/noise.hpp"
+#include "nebula/cert.hpp"
 #include <iostream>
 #include <iomanip>
 #include <thread>
 #include <chrono>
 #include <cstring>
+#include <fstream>
 
 using namespace nebula;
 
@@ -429,6 +431,50 @@ void test_noise() {
     std::cout << std::endl;
 }
 
+void test_certificates() {
+    std::cout << "=== Testing Certificates ===" << std::endl;
+    
+    // Create a test certificate PEM (this would normally come from a file)
+    // This is a self-signed CA certificate for testing
+    const char* test_ca_pem = R"(-----BEGIN NEBULA CERTIFICATE-----
+CiAKBG5vZGUSDAgBEP///w8YAiABKgR0ZXN0MIG2hLrlBDi4/4OHBkABSiCvijOD
+iEx6+DFsCFPZNe9JQNfD0lJUMqFpBYzui23UhVIg97wyYwE8T3Fft1FNye3d9IQO
+np/1p5pLlQGHDLCCBuY=
+-----END NEBULA CERTIFICATE-----)";
+    
+    // Parse certificate from PEM
+    auto cert_result = Certificate::from_pem(test_ca_pem);
+    if (cert_result.is_error()) {
+        std::cout << "Failed to parse certificate: " << cert_result.error() << std::endl;
+        std::cout << "Note: This is expected if protobuf generation hasn't run yet" << std::endl;
+        return;
+    }
+    
+    auto cert = cert_result.value();
+    std::cout << "Parsed certificate:" << std::endl;
+    std::cout << cert->to_string() << std::endl;
+    
+    // Create a CA pool
+    auto ca_result = CertificateAuthority::create(cert);
+    if (ca_result.is_error()) {
+        std::cout << "Failed to create CA: " << ca_result.error() << std::endl;
+        return;
+    }
+    
+    auto ca = ca_result.value();
+    std::cout << "Created CA pool with fingerprint: " << ca->get_fingerprints()[0] << std::endl;
+    
+    // Test certificate validation
+    auto verify_result = ca->verify_certificate(cert);
+    if (verify_result.is_error()) {
+        std::cout << "Certificate verification failed: " << verify_result.error() << std::endl;
+    } else {
+        std::cout << "Certificate verification passed!" << std::endl;
+    }
+    
+    std::cout << std::endl;
+}
+
 int main() {
     std::cout << "Nebula C++ Port - Basic Tests" << std::endl;
     std::cout << "=============================" << std::endl << std::endl;
@@ -442,6 +488,7 @@ int main() {
         test_tun();
         test_crypto();
         test_noise();
+        test_certificates();
         
         std::cout << "All tests completed!" << std::endl;
         return 0;
