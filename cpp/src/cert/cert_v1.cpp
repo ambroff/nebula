@@ -346,7 +346,7 @@ Result<Certificate::Ptr> Certificate::from_pem(const std::string& pem) {
     auto content_start = begin_pos + begin.length();
     auto content = pem.substr(content_start, end_pos - content_start);
     
-    // Decode base64
+    // Decode base64 - OpenSSL expects newlines by default
     BIO* b64 = BIO_new(BIO_f_base64());
     BIO* mem = BIO_new_mem_buf(content.data(), content.length());
     BIO_push(b64, mem);
