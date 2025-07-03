@@ -4,6 +4,7 @@
 #include "nebula/udp.hpp"
 #include "nebula/tun.hpp"
 #include "nebula/crypto.hpp"
+#include "nebula/noise.hpp"
 #include <iostream>
 #include <iomanip>
 #include <thread>
@@ -296,6 +297,138 @@ void test_crypto() {
     std::cout << std::endl;
 }
 
+void test_noise() {
+    std::cout << "=== Testing Noise Protocol ===" << std::endl;
+    
+    // Initialize crypto
+    init_crypto();
+    
+    // Generate static keys for both parties
+    auto alice_static = generate_keypair(CurveType::CURVE25519);
+    auto bob_static = generate_keypair(CurveType::CURVE25519);
+    
+    if (alice_static.is_error() || bob_static.is_error()) {
+        std::cout << "Failed to generate static keys" << std::endl;
+        return;
+    }
+    
+    // Create initiator handshake state (Alice)
+    HandshakeState::Config alice_config;
+    alice_config.pattern = NoisePattern::IX;
+    alice_config.role = NoiseRole::Initiator;
+    alice_config.cipher = CipherType::AES256_GCM;
+    alice_config.curve = CurveType::CURVE25519;
+    alice_config.static_key = alice_static.value().private_key;
+    alice_config.static_public = alice_static.value().public_key;
+    
+    auto alice_hs = HandshakeState::create(alice_config);
+    if (alice_hs.is_error()) {
+        std::cout << "Failed to create initiator handshake: " << alice_hs.error() << std::endl;
+        return;
+    }
+    
+    // Create responder handshake state (Bob)
+    HandshakeState::Config bob_config;
+    bob_config.pattern = NoisePattern::IX;
+    bob_config.role = NoiseRole::Responder;
+    bob_config.cipher = CipherType::AES256_GCM;
+    bob_config.curve = CurveType::CURVE25519;
+    bob_config.static_key = bob_static.value().private_key;
+    bob_config.static_public = bob_static.value().public_key;
+    
+    auto bob_hs = HandshakeState::create(bob_config);
+    if (bob_hs.is_error()) {
+        std::cout << "Failed to create responder handshake: " << bob_hs.error() << std::endl;
+        return;
+    }
+    
+    std::cout << "Created handshake states" << std::endl;
+    std::cout << "Pattern: " << alice_hs.value()->pattern_name() << std::endl;
+    
+    // Alice -> Bob (first message)
+    const char* alice_payload = "Hello from Alice";
+    auto msg1_result = alice_hs.value()->write_message(
+        reinterpret_cast<const uint8_t*>(alice_payload), strlen(alice_payload));
+    
+    if (msg1_result.is_error()) {
+        std::cout << "Failed to write first message: " << msg1_result.error() << std::endl;
+        return;
+    }
+    
+    auto msg1 = msg1_result.value();
+    std::cout << "Alice -> Bob: " << msg1.output.size() << " bytes" << std::endl;
+    
+    // Bob reads first message
+    auto read1_result = bob_hs.value()->read_message(
+        msg1.output.data(), msg1.output.size());
+    
+    if (read1_result.is_error()) {
+        std::cout << "Bob failed to read first message: " << read1_result.error() << std::endl;
+        return;
+    }
+    
+    auto read1 = read1_result.value();
+    if (!read1.output.empty()) {
+        std::string payload(read1.output.begin(), read1.output.end());
+        std::cout << "Bob received: " << payload << std::endl;
+    }
+    
+    // Bob -> Alice (second message)
+    const char* bob_payload = "Hello from Bob";
+    auto msg2_result = bob_hs.value()->write_message(
+        reinterpret_cast<const uint8_t*>(bob_payload), strlen(bob_payload));
+    
+    if (msg2_result.is_error()) {
+        std::cout << "Failed to write second message: " << msg2_result.error() << std::endl;
+        return;
+    }
+    
+    auto msg2 = msg2_result.value();
+    std::cout << "Bob -> Alice: " << msg2.output.size() << " bytes" << std::endl;
+    
+    if (!msg2.handshake_complete || !msg2.transport_keys.has_value()) {
+        std::cout << "Bob handshake not complete!" << std::endl;
+        return;
+    }
+    
+    // Alice reads second message
+    auto read2_result = alice_hs.value()->read_message(
+        msg2.output.data(), msg2.output.size());
+    
+    if (read2_result.is_error()) {
+        std::cout << "Alice failed to read second message: " << read2_result.error() << std::endl;
+        return;
+    }
+    
+    auto read2 = read2_result.value();
+    if (!read2.output.empty()) {
+        std::string payload(read2.output.begin(), read2.output.end());
+        std::cout << "Alice received: " << payload << std::endl;
+    }
+    
+    if (!read2.handshake_complete || !read2.transport_keys.has_value()) {
+        std::cout << "Alice handshake not complete!" << std::endl;
+        return;
+    }
+    
+    std::cout << "Handshake complete!" << std::endl;
+    
+    // Verify both parties derived the same keys
+    auto alice_keys = read2.transport_keys.value();
+    auto bob_keys = msg2.transport_keys.value();
+    
+    // Alice's send key should match Bob's receive key
+    if (alice_keys.first == bob_keys.second &&
+        alice_keys.second == bob_keys.first) {
+        std::cout << "Transport keys match correctly!" << std::endl;
+    } else {
+        std::cout << "Transport keys mismatch!" << std::endl;
+    }
+    
+    cleanup_crypto();
+    std::cout << std::endl;
+}
+
 int main() {
     std::cout << "Nebula C++ Port - Basic Tests" << std::endl;
     std::cout << "=============================" << std::endl << std::endl;
@@ -308,6 +441,7 @@ int main() {
         test_udp();
         test_tun();
         test_crypto();
+        test_noise();
         
         std::cout << "All tests completed!" << std::endl;
         return 0;
