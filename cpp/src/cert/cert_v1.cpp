@@ -374,7 +374,7 @@ Result<Certificate::Ptr> Certificate::unmarshal(const uint8_t* data, size_t len)
     // Try to parse as v1 certificate
     cert::RawNebulaCertificate raw;
     if (!raw.ParseFromArray(data, len)) {
-        return Result<Ptr>::error("Failed to parse certificate");
+        return Result<Ptr>::error("Failed to parse protobuf from " + std::to_string(len) + " bytes");
     }
     
     auto cert = std::make_shared<CertificateV1>();

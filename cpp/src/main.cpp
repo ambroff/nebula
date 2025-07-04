@@ -437,9 +437,9 @@ void test_certificates() {
     // Create a test certificate PEM (this would normally come from a file)
     // This is a self-signed CA certificate for testing
     const char* test_ca_pem = R"(-----BEGIN NEBULA CERTIFICATE-----
-CiAKBG5vZGUSDAgBEP///w8YAiABKgR0ZXN0MIG2hLrlBDi4/4OHBkABSiCvijOD
-iEx6+DFsCFPZNe9JQNfD0lJUMqFpBYzui23UhVIg97wyYwE8T3Fft1FNye3d9IQO
-np/1p5pLlQGHDLCCBuY=
+CkcKB3Rlc3QtY2ESBoHIoYUMGCIEdGVzdCiAoPj6BTCA4s+qBjogQUFBQUFBQUFB
+QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFAARJAU1NTU1NTU1NTU1NTU1NTU1NTU1NT
+U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTUw==
 -----END NEBULA CERTIFICATE-----)";
     
     // Parse certificate from PEM
