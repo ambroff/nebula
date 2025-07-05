@@ -1,7 +1,10 @@
 # Nebula C++ Port Plan
 
 ## Overview
-This document outlines the plan to port a minimal subset of Nebula to C++ using primarily Boost libraries (Boost.Asio for networking, Boost.PropertyTree/Json for configuration) with OpenSSL for cryptography. The port will exclude lighthouse functionality, certificate generation, SSH server, and DNS server.
+This document outlines the plan to port a minimal subset of Nebula to C++ using primarily Boost libraries (Boost.Asio for networking, Boost.Json for configuration) with OpenSSL for cryptography. The port will exclude lighthouse functionality, certificate generation, SSH server, and DNS server.
+
+**Last Updated**: July 2025
+**Status**: In Progress (Phase 3)
 
 ## Architecture Overview
 
@@ -119,7 +122,7 @@ struct Header {
 
 ## Configuration Format
 
-Using Boost.Json for a simplified configuration format:
+Using Boost.Json for a simplified configuration format (updated from original Boost.PropertyTree plan):
 
 ```json
 {
@@ -305,8 +308,8 @@ Using GNU Make with automatic dependency tracking:
 ```makefile
 # Compiler settings
 CXX := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -O2 -g
-LDFLAGS := 
+CXXFLAGS := -std=c++20 -Wall -Wextra -O2 -g -pthread
+LDFLAGS := -pthread
 
 # Feature detection
 HAVE_BOOST := $(shell pkg-config --exists boost && echo 1)
@@ -400,3 +403,135 @@ clean:
 - Handles connection mobility
 - Performance within 20% of Go implementation
 - Clean code with good test coverage
+
+## Implementation Progress
+
+### Completed Components ✓
+1. **Basic Types and Headers** (types.hpp, header.hpp)
+   - VpnIp conversions and IpNet CIDR support
+   - 16-byte packet header encoding/decoding
+   - Result<T> error handling with template specializations
+
+2. **Configuration System** (config.hpp)
+   - JSON-based configuration using Boost.Json
+   - Schema validation and default values
+   - Example configuration file
+
+3. **Platform Abstractions** (tun.hpp, tun_linux.cpp)
+   - TUN device interface definition
+   - Linux implementation with ioctl operations
+   - Placeholder for macOS/Windows support
+
+4. **UDP Socket Wrapper** (udp.hpp)
+   - Boost.Asio-based async UDP implementation
+   - Statistics tracking with atomic counters
+   - Configurable batch processing
+
+5. **Crypto Primitives** (crypto.hpp)
+   - OpenSSL EVP API wrappers
+   - Curve25519 and P256 key operations
+   - AES-256-GCM and ChaCha20-Poly1305 AEAD
+   - SHA256 hashing
+
+6. **Noise Protocol** (noise.hpp)
+   - Complete Noise_IX implementation
+   - Handshake state machine
+   - Transport key derivation
+
+7. **Certificate Parsing** (cert.hpp, cert_v1.cpp)
+   - Protobuf-based v1 certificate support
+   - PEM encoding/decoding
+   - Certificate validation and CA pool management
+   - Signature verification with Ed25519
+
+8. **Build System** (Makefile)
+   - Automatic dependency tracking
+   - Platform detection (Linux/macOS)
+   - Protobuf generation rules
+   - Debug/release build targets
+
+9. **Test Suite** (main.cpp)
+   - Component integration tests
+   - Demonstrates all implemented features
+   - Validates core functionality
+
+### TODO List - Remaining Work
+
+#### Phase 3: Core Networking (In Progress)
+- [ ] **HostMap and ConnectionState** (Priority: High)
+  - Thread-safe map of VPN IPs to HostInfo
+  - Connection state lifecycle management
+  - Remote endpoint tracking
+  - Connection statistics
+
+- [ ] **Packet Flow Handlers** (Priority: High)
+  - Inside handler (TUN → UDP)
+  - Outside handler (UDP → TUN)
+  - Message type routing
+  - Packet encapsulation/decapsulation
+
+#### Phase 4: Security Features
+- [ ] **Firewall Engine** (Priority: Medium)
+  - Rule parsing from configuration
+  - Fast packet matching algorithm
+  - Connection tracking state
+  - Group-based access control
+
+- [ ] **Handshake Manager** (Priority: Medium)
+  - Handshake initiation and response
+  - Retry logic with exponential backoff
+  - Timeout handling
+  - Connection establishment
+
+- [ ] **UDP Hole Punching** (Priority: Low)
+  - Punch packet generation
+  - Response handling
+  - Configurable intervals
+
+#### Phase 5: Integration and Polish
+- [ ] **Main Application** (Priority: High)
+  - Component wiring and initialization
+  - Main event loop with signal handling
+  - Graceful shutdown
+  - Command-line argument parsing
+
+- [ ] **Logging Framework** (Priority: Low)
+  - Structured logging with levels
+  - JSON output format option
+  - Performance-conscious design
+
+- [ ] **Performance Optimizations** (Priority: Low)
+  - Buffer pools for packet data
+  - Zero-copy packet processing
+  - Vectored I/O for TUN devices
+  - Connection cache for firewall
+
+- [ ] **Additional Platform Support** (Priority: Low)
+  - macOS TUN implementation (tun_darwin.cpp)
+  - Windows TUN implementation (tun_windows.cpp)
+  - FreeBSD support
+
+### Technical Decisions Made During Implementation
+
+1. **C++20 Standard**: Upgraded from C++17 for better concepts and coroutines support
+2. **Boost.Json over PropertyTree**: Better performance and cleaner API for JSON parsing
+3. **EVP API for OpenSSL**: Using modern EVP API instead of deprecated direct functions
+4. **Atomic Counters**: Using std::atomic for thread-safe statistics without mutex overhead
+5. **Template Specialization**: Result<std::string> specialization to avoid constructor ambiguity
+6. **GNU Make**: Chosen over CMake for simpler dependency management in this project
+
+### Known Issues and Limitations
+
+1. **Platform Support**: Currently only Linux TUN device is implemented
+2. **Certificate v2**: ASN.1 certificate format not yet implemented
+3. **Cipher Selection**: Only AES-256-GCM implemented, ChaCha20-Poly1305 pending
+4. **IPv6 Support**: Current implementation focuses on IPv4 only
+5. **Connection Mobility**: Endpoint updates not yet implemented
+
+### Next Steps
+
+1. Implement HostMap and ConnectionState for connection management
+2. Create packet flow handlers to enable actual VPN functionality
+3. Port firewall engine for security policy enforcement
+4. Wire everything together in main application
+5. Add compatibility testing with Go Nebula nodes
