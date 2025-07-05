@@ -9,6 +9,7 @@ namespace nebula {
 // Header constants
 constexpr uint8_t HEADER_VERSION = 1;
 constexpr size_t HEADER_LEN = 16;
+constexpr size_t HEADER_SIZE = HEADER_LEN;  // Alias for compatibility
 
 // Message types
 enum class MessageType : uint8_t {
@@ -66,8 +67,8 @@ public:
     
     // Decode header from byte buffer
     // Buffer must have at least HEADER_LEN bytes
-    // Returns false if decode fails
-    bool decode(const uint8_t* buffer, size_t len);
+    // Returns Result<void> with error if decode fails
+    Result<void> decode(const uint8_t* buffer, size_t len = HEADER_LEN);
     
     // Get human-readable type name
     std::string type_name() const;
@@ -154,9 +155,9 @@ inline void Header::encode(uint8_t* buffer) const {
     buffer[15] = message_counter & 0xFF;
 }
 
-inline bool Header::decode(const uint8_t* buffer, size_t len) {
+inline Result<void> Header::decode(const uint8_t* buffer, size_t len) {
     if (len < HEADER_LEN) {
-        return false;
+        return Result<void>("Header too short");
     }
     
     // Byte 0: Version and Type
@@ -185,7 +186,7 @@ inline bool Header::decode(const uint8_t* buffer, size_t len) {
                       (static_cast<uint64_t>(buffer[14]) << 8) |
                       buffer[15];
     
-    return true;
+    return Result<void>();
 }
 
 inline std::string Header::type_name() const {

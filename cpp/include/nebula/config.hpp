@@ -108,6 +108,7 @@ public:
     std::string cipher = "aes";  // "aes" or "chachapoly"
     std::vector<IpNet> preferred_ranges;
     LoggingConfig logging;
+    bool drop_local_broadcast = false;  // Drop local broadcast/multicast traffic
     
     // Load configuration from JSON file
     static Result<Config> load_from_file(const std::filesystem::path& path);
